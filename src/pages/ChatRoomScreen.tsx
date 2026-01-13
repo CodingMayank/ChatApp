@@ -36,7 +36,15 @@ const ChatRoomScreen: React.FC = () => {
     // Wait for session to load
     if (sessionLoading) return;
     
-    if (!session) {
+    // If no session or no location data, redirect to onboarding to get location again
+    if (!session || !session.latitude || !session.longitude) {
+      // Clear any stale session data
+      sessionStorage.removeItem('nearbyChat_sessionId');
+      sessionStorage.removeItem('nearbyChat_username');
+      sessionStorage.removeItem('nearbyChat_latitude');
+      sessionStorage.removeItem('nearbyChat_longitude');
+      sessionStorage.removeItem('nearbyChat_currentGroup');
+      sessionStorage.removeItem('nearbyChat_currentGroupName');
       navigate('/onboarding');
       return;
     }

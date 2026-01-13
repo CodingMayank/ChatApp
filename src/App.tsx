@@ -8,6 +8,7 @@ import OnboardingScreen from "./pages/OnboardingScreen";
 import GroupsDiscoveryScreen from "./pages/GroupsDiscoveryScreen";
 import CreateGroupScreen from "./pages/CreateGroupScreen";
 import ChatRoomScreen from "./pages/ChatRoomScreen";
+import DocumentationPage from "./pages/DocumentationPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/groups" element={<GroupsDiscoveryScreen />} />
           <Route path="/create-group" element={<CreateGroupScreen />} />
           <Route path="/chat/:groupId" element={<ChatRoomScreen />} />
+          <Route path="/docs" element={<DocumentationPage />} />
           {/* Redirect old location-permission route */}
           <Route path="/location-permission" element={<Navigate to="/onboarding" replace />} />
           <Route path="*" element={<NotFound />} />
