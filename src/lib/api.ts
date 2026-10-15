@@ -38,7 +38,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   const result = await response.json().catch(() => null) as { error?: string } | null;
   if (!response.ok) {
-    throw new Error(result?.error || `The chat server returned HTTP ${response.status}.`);
+    throw new Error(
+      result?.error ||
+        `The chat server returned HTTP ${response.status} for ${init?.method || 'GET'} ${path.split('?')[0]}.`,
+    );
   }
   return result as T;
 }

@@ -3,6 +3,14 @@ import { handleRequest, initializeDatabase } from '../server/index.mjs';
 export default async function handler(request, response) {
   try {
     await initializeDatabase();
+
+    const requestUrl = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
+    const routedPath = requestUrl.searchParams.get('route');
+    if (routedPath) {
+      requestUrl.searchParams.delete('route');
+      request.url = `/api/${routedPath.replace(/^\/+/, '')}${requestUrl.search}`;
+    }
+
     await handleRequest(request, response);
   } catch (error) {
     console.error('Database initialization failed:', error.message);
