@@ -3,7 +3,27 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/onboarding",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/groups",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/create-group",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/chat/:groupId",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/docs",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/location-permission",
       "destination": "/index.html"
     }
   ]
