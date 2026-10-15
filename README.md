@@ -25,7 +25,9 @@ NearbyChat is a React/Vite client with a small Node.js API server. PostgreSQL cr
    npm run dev
    ```
 
-   The app is served at `http://localhost:8080`.    The API initializes the chat tables and indexes on startup and removes expired sessions and empty chats periodically.
+   The app is served at `http://localhost:8081`. The API listens on port `3001`, initializes the chat tables and indexes on startup, and removes expired sessions and empty chats periodically. These defaults avoid conflicts with services using ports `8080` and `3000`. To use different ports, set `WEB_PORT` and `API_PORT` in `.env`; the Vite API proxy follows `API_PORT`.
+
+   For accurate nearby chats, allow location access for `localhost` in your browser and enable location services on your device. Browser location requires a secure context: use `localhost` on this computer, or HTTPS when opening the app from another device. Demo mode uses a fixed sample location, not your current location.
 
 For a production-style run, build the client with `npm run build`, then start the API and static web server with `npm start`. The hosting environment must provide `DATABASE_URL` as a server-side secret and allow a TLS connection to the Supabase PostgreSQL pooler.
 

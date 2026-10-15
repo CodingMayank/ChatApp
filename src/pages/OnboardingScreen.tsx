@@ -11,6 +11,7 @@ const OnboardingScreen: React.FC = () => {
   const { createSession } = useSession();
   const [loading, setLoading] = useState(false);
   const [showDemoOption, setShowDemoOption] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const features = [
     {
@@ -37,39 +38,72 @@ const OnboardingScreen: React.FC = () => {
     } catch (err) {
       console.error('Session creation error:', err);
       setLoading(false);
-      setShowDemoOption(true);
+      setLocationError(
+        err instanceof Error
+          ? `Your location was found, but the chat server could not start your session: ${err.message}`
+          : 'Your location was found, but the chat server could not start your session.',
+      );
     }
   };
 
   const handleEnterChats = async () => {
     setLoading(true);
+    setLocationError(null);
+    setShowDemoOption(false);
 
-    // Check if geolocation is supported
-    if (!navigator.geolocation) {
+    if (!window.isSecureContext) {
+      setLocationError('Browser location requires a secure page. Use http://localhost on this computer or open the app over HTTPS on another device.');
       setShowDemoOption(true);
       setLoading(false);
       return;
     }
 
-    // Request location permission directly
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        await handleCreateSessionWithLocation(
-          position.coords.latitude,
-          position.coords.longitude
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+      setLocationError('Location is not supported by this browser. Try a supported browser or use demo mode.');
+      setShowDemoOption(true);
+      setLoading(false);
+      return;
+    }
+
+    try {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            await handleCreateSessionWithLocation(
+              position.coords.latitude,
+              position.coords.longitude
+            );
+          },
+          (err) => {
+            console.error('Location error:', err.code, err.message);
+            const messages: Record<number, string> = {
+              1: 'Location access was denied. Allow location access for this site in your browser settings, then try again.',
+              2: 'Your device could not determine a location. Check that device location services are enabled and try again.',
+              3: 'Getting your location timed out. Check your connection and device location services, then try again.',
+            };
+            setLocationError(
+              messages[err.code] ??
+                `Could not get your location: ${err.message || 'unknown location error'}.`,
+            );
+            setShowDemoOption(true);
+            setLoading(false);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 30000,
+            maximumAge: 30000,
+          }
         );
-      },
-      (err) => {
-        console.error('Location error:', err.code, err.message);
+    } catch (err) {
+        console.error('Location request error:', err);
+        setLocationError(
+          err instanceof Error
+            ? `Could not request your location: ${err.message}`
+            : 'Could not request your location. Check your browser permissions and try again.',
+        );
         setShowDemoOption(true);
         setLoading(false);
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: 15000,
-        maximumAge: 600000,
-      }
-    );
+    }
   };
 
   const handleDemoMode = async () => {
@@ -117,6 +151,12 @@ const OnboardingScreen: React.FC = () => {
 
           {/* CTA Buttons */}
           <div className="space-y-3">
+            {locationError && (
+              <p role="alert" className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+                {locationError}
+              </p>
+            )}
+
             <Button 
               variant="sky" 
               size="xl" 
@@ -153,7 +193,7 @@ const OnboardingScreen: React.FC = () => {
 
           {showDemoOption && (
             <p className="text-xs text-muted-foreground mt-4 animate-fade-in-up">
-              Location unavailable? Demo mode uses a sample location for testing.
+              Demo mode uses a sample location and will not show chats near your real location.
             </p>
           )}
         </GlassCard>

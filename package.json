@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n api,web \"node --env-file-if-exists=.env server/index.mjs\" \"vite --host :: --port 8080\"",
+    "dev": "concurrently -k -n api,web \"node --env-file-if-exists=.env server/index.mjs\" \"vite --host :: --strictPort\"",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

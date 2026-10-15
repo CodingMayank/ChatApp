@@ -7,7 +7,7 @@ import { Pool } from 'pg';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distDir = path.join(rootDir, 'dist');
-const port = Number(process.env.PORT || 3000);
+const port = Number(process.env.API_PORT || process.env.PORT || 3001);
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
