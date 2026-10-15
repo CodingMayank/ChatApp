@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { generateUsername } from '@/lib/usernameGenerator';
 
 interface Session {
@@ -14,42 +14,55 @@ export function useSession() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Try to restore session from sessionStorage
     const storedSessionId = sessionStorage.getItem('nearbyChat_sessionId');
     const storedUsername = sessionStorage.getItem('nearbyChat_username');
     const storedLatitude = sessionStorage.getItem('nearbyChat_latitude');
     const storedLongitude = sessionStorage.getItem('nearbyChat_longitude');
 
-    if (storedSessionId && storedUsername) {
-      setSession({
-        sessionId: storedSessionId,
-        username: storedUsername,
-        latitude: storedLatitude ? parseFloat(storedLatitude) : null,
-        longitude: storedLongitude ? parseFloat(storedLongitude) : null,
-      });
-    }
-    setIsLoading(false);
+    let isMounted = true;
+    const restoreSession = async () => {
+      try {
+        if (storedSessionId && storedUsername) {
+          await api.createSession(storedSessionId, storedUsername);
+          const latitude = storedLatitude === null ? null : Number(storedLatitude);
+          const longitude = storedLongitude === null ? null : Number(storedLongitude);
+          if (isMounted) {
+            setSession({
+              sessionId: storedSessionId,
+              username: storedUsername,
+              latitude: Number.isFinite(latitude) ? latitude : null,
+              longitude: Number.isFinite(longitude) ? longitude : null,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error restoring session:', error);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    void restoreSession();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const createSession = useCallback(async (latitude: number, longitude: number) => {
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+        !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      throw new Error('A valid location is required to start a session.');
+    }
+
     const sessionId = crypto.randomUUID();
     const username = generateUsername();
+
+    await api.createSession(sessionId, username);
 
     sessionStorage.setItem('nearbyChat_sessionId', sessionId);
     sessionStorage.setItem('nearbyChat_username', username);
     sessionStorage.setItem('nearbyChat_latitude', latitude.toString());
     sessionStorage.setItem('nearbyChat_longitude', longitude.toString());
-
-    // Register session in database
-    const { error } = await supabase.from('active_sessions').insert({
-      session_id: sessionId,
-      username: username,
-      group_id: null,
-    });
-
-    if (error) {
-      console.error('Error creating session:', error);
-    }
 
     const newSession = { sessionId, username, latitude, longitude };
     setSession(newSession);
@@ -57,77 +70,24 @@ export function useSession() {
   }, []);
 
   const updateSessionGroup = useCallback(async (groupId: string | null) => {
-    if (!session) return;
-
-    // Get current group before updating
-    const currentGroupId = sessionStorage.getItem('nearbyChat_currentGroup');
-
-    // Update session with new group
-    await supabase
-      .from('active_sessions')
-      .update({ group_id: groupId, last_seen: new Date().toISOString() })
-      .eq('session_id', session.sessionId);
-
-    // If leaving a group (groupId is null and we had a previous group), check if group is now empty
-    if (groupId === null && currentGroupId) {
-      await checkAndDeleteEmptyGroup(currentGroupId);
-    }
+    if (!session) throw new Error('Your session expired. Please start a new session.');
+    await api.updateSessionGroup(session.sessionId, groupId);
   }, [session]);
-
-  const checkAndDeleteEmptyGroup = async (groupId: string) => {
-    try {
-      // Count remaining users in the group
-      const { count, error: countError } = await supabase
-        .from('active_sessions')
-        .select('*', { count: 'exact', head: true })
-        .eq('group_id', groupId);
-
-      if (countError) {
-        console.error('Error counting group members:', countError);
-        return;
-      }
-
-      // If no users left, delete the group (this will cascade delete messages)
-      if (count === 0) {
-        console.log('Deleting empty group:', groupId);
-        const { error: deleteError } = await supabase
-          .from('groups')
-          .delete()
-          .eq('id', groupId);
-
-        if (deleteError) {
-          console.error('Error deleting empty group:', deleteError);
-        }
-      }
-    } catch (err) {
-      console.error('Error in checkAndDeleteEmptyGroup:', err);
-    }
-  };
 
   const heartbeat = useCallback(async () => {
     if (!session) return;
 
-    await supabase
-      .from('active_sessions')
-      .update({ last_seen: new Date().toISOString() })
-      .eq('session_id', session.sessionId);
+    try {
+      await api.heartbeat(session.sessionId);
+    } catch (error) {
+      console.error('Error updating session heartbeat:', error);
+    }
   }, [session]);
 
   const endSession = useCallback(async () => {
     if (!session) return;
 
-    // Get current group before ending session
-    const currentGroupId = sessionStorage.getItem('nearbyChat_currentGroup');
-
-    await supabase
-      .from('active_sessions')
-      .delete()
-      .eq('session_id', session.sessionId);
-
-    // Check if the group should be deleted
-    if (currentGroupId) {
-      await checkAndDeleteEmptyGroup(currentGroupId);
-    }
+    await api.endSession(session.sessionId);
 
     sessionStorage.removeItem('nearbyChat_sessionId');
     sessionStorage.removeItem('nearbyChat_username');

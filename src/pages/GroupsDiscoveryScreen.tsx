@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CloudBackground } from '@/components/CloudBackground';
 import { GlassCard } from '@/components/GlassCard';
@@ -13,6 +13,8 @@ const GroupsDiscoveryScreen: React.FC = () => {
   const { session, isLoading: sessionLoading, updateSessionGroup, heartbeat } = useSession();
   const { groups, isLoading: groupsLoading } = useGroups(session?.latitude ?? null, session?.longitude ?? null);
   const { totalActiveUsers } = useActiveUsers();
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     // Wait for session to load before checking
@@ -25,7 +27,10 @@ const GroupsDiscoveryScreen: React.FC = () => {
     }
 
     // Clear any previous group association
-    updateSessionGroup(null);
+    void updateSessionGroup(null).catch((error: unknown) => {
+      console.error('Error clearing previous group:', error);
+      setJoinError(error instanceof Error ? error.message : 'Could not update your session.');
+    });
 
     // Heartbeat every 20 seconds for more accurate online count
     const interval = setInterval(heartbeat, 20000);
@@ -37,10 +42,19 @@ const GroupsDiscoveryScreen: React.FC = () => {
   }, [session, sessionLoading, navigate, updateSessionGroup, heartbeat]);
 
   const handleJoinGroup = async (groupId: string, groupName: string) => {
-    await updateSessionGroup(groupId);
-    sessionStorage.setItem('nearbyChat_currentGroup', groupId);
-    sessionStorage.setItem('nearbyChat_currentGroupName', groupName);
-    navigate(`/chat/${groupId}`);
+    setJoiningGroupId(groupId);
+    setJoinError(null);
+    try {
+      await updateSessionGroup(groupId);
+      sessionStorage.setItem('nearbyChat_currentGroup', groupId);
+      sessionStorage.setItem('nearbyChat_currentGroupName', groupName);
+      navigate(`/chat/${groupId}`);
+    } catch (error) {
+      console.error('Error joining group:', error);
+      setJoinError(error instanceof Error ? error.message : 'Could not join this chat. Please try again.');
+    } finally {
+      setJoiningGroupId(null);
+    }
   };
 
   const handleCreateGroup = () => {
@@ -111,6 +125,12 @@ const GroupsDiscoveryScreen: React.FC = () => {
               </h2>
             </div>
 
+            {joinError && (
+              <p role="alert" className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+                {joinError}
+              </p>
+            )}
+
             {groupsLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map(i => (
@@ -159,10 +179,11 @@ const GroupsDiscoveryScreen: React.FC = () => {
                       <Button 
                         variant="glassPrimary" 
                         size="sm"
+                        disabled={joiningGroupId !== null}
                         onClick={() => handleJoinGroup(group.id, group.name)}
                       >
                         <MessageCircle className="w-4 h-4" />
-                        Join
+                        {joiningGroupId === group.id ? 'Joining...' : 'Join'}
                       </Button>
                     </div>
                   </GlassCard>

@@ -1,73 +1,32 @@
-# Welcome to your Lovable project
+# NearbyChat
 
-## Project info
+NearbyChat is a React/Vite client with a small Node.js API server. PostgreSQL credentials are read only by the server from `DATABASE_URL`; never put a database URL or password in a `VITE_*` variable or browser code.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Run locally
 
-## How can I edit this code?
+1. Install dependencies with `npm install`.
+2. Set `DATABASE_URL` in the root `.env` file (which is ignored by Git). Node loads this file for the API server when you run either server script:
 
-There are several ways of editing your application.
+   ```dotenv
+   DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/postgres
+   ```
 
-**Use Lovable**
+   Or set it in the PowerShell session that will run the app. This prompt avoids putting the value in shell history:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+   ```powershell
+   $secure = Read-Host "DATABASE_URL" -AsSecureString
+   $env:DATABASE_URL = [System.Net.NetworkCredential]::new("", $secure).Password
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+   Keep the value out of source files and `VITE_*` variables. If the database password contains reserved URL characters such as `@`, URL-encode them in the password (for example, `@` becomes `%40`).
+3. Start both the API and Vite client:
 
-**Use your preferred IDE**
+   ```powershell
+   npm run dev
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+   The app is served at `http://localhost:8080`.    The API initializes the chat tables and indexes on startup and removes expired sessions and empty chats periodically.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+For a production-style run, build the client with `npm run build`, then start the API and static web server with `npm start`. The hosting environment must provide `DATABASE_URL` as a server-side secret and allow a TLS connection to the Supabase PostgreSQL pooler.
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+The client polls the API for group, message, and active-user changes. The database connection URL is never bundled into the frontend.

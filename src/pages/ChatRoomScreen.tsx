@@ -37,7 +37,7 @@ const ChatRoomScreen: React.FC = () => {
     if (sessionLoading) return;
     
     // If no session or no location data, redirect to onboarding to get location again
-    if (!session || !session.latitude || !session.longitude) {
+    if (!session || session.latitude === null || session.longitude === null) {
       // Clear any stale session data
       sessionStorage.removeItem('nearbyChat_sessionId');
       sessionStorage.removeItem('nearbyChat_username');

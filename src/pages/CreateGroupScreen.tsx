@@ -10,7 +10,7 @@ import { useGroups } from '@/hooks/useGroups';
 
 const CreateGroupScreen: React.FC = () => {
   const navigate = useNavigate();
-  const { session, isLoading: sessionLoading, updateSessionGroup } = useSession();
+  const { session, isLoading: sessionLoading } = useSession();
   const { createGroup } = useGroups(session?.latitude ?? null, session?.longitude ?? null);
   const [groupName, setGroupName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -25,6 +25,10 @@ const CreateGroupScreen: React.FC = () => {
 
   const handleCreate = async () => {
     if (!groupName.trim() || !session) return;
+    if (session.latitude === null || session.longitude === null) {
+      setError('Your location is unavailable. Please start a new session and allow location access.');
+      return;
+    }
 
     setIsCreating(true);
     setError(null);
@@ -33,19 +37,17 @@ const CreateGroupScreen: React.FC = () => {
       const newGroup = await createGroup(
         groupName.trim(),
         session.sessionId,
-        session.latitude!,
-        session.longitude!
+        session.latitude,
+        session.longitude
       );
       
-      // Join the newly created group
-      await updateSessionGroup(newGroup.id);
       sessionStorage.setItem('nearbyChat_currentGroup', newGroup.id);
       sessionStorage.setItem('nearbyChat_currentGroupName', newGroup.name);
       
       navigate(`/chat/${newGroup.id}`);
     } catch (err) {
       console.error('Error creating group:', err);
-      setError('Failed to create group. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to create group. Please try again.');
       setIsCreating(false);
     }
   };
