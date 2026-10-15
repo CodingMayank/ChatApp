@@ -67,6 +67,29 @@ const json = (response, status, body) => {
 };
 
 const readJson = async (request) => {
+  if (request.body !== undefined) {
+    const body = request.body;
+    const rawBody = typeof body === 'string' || Buffer.isBuffer(body)
+      ? body
+      : JSON.stringify(body);
+
+    if (Buffer.byteLength(rawBody) > 16_384) {
+      const error = new Error('Request body is too large.');
+      error.status = 413;
+      throw error;
+    }
+
+    try {
+      return typeof body === 'string' || Buffer.isBuffer(body)
+        ? JSON.parse(rawBody.toString())
+        : body;
+    } catch {
+      const error = new Error('Request body must be valid JSON.');
+      error.status = 400;
+      throw error;
+    }
+  }
+
   const chunks = [];
   let length = 0;
   for await (const chunk of request) {
@@ -401,7 +424,7 @@ const serveFrontend = async (request, response, url) => {
   }
 };
 
-const server = createServer(async (request, response) => {
+export const handleRequest = async (request, response) => {
   try {
     const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
     if (url.pathname.startsWith('/api/')) {
@@ -417,26 +440,36 @@ const server = createServer(async (request, response) => {
     const message = error.status ? error.message : safeDatabaseMessage(error);
     json(response, status, { error: message });
   }
-});
-
-await pool.query(schema);
-await cleanupInactiveSessions();
-server.listen(port, '0.0.0.0', () => {
-  console.log(`NearbyChat server listening on port ${port}.`);
-});
-
-const cleanupTimer = setInterval(() => {
-  void cleanupInactiveSessions().catch((error) => {
-    console.error('Error cleaning up inactive sessions:', error);
-  });
-}, 60_000);
-cleanupTimer.unref();
-
-const shutdown = async () => {
-  clearInterval(cleanupTimer);
-  server.close();
-  await pool.end();
 };
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+let databaseInitialization;
+export const initializeDatabase = () => {
+  if (!databaseInitialization) {
+    databaseInitialization = pool.query(schema).then(cleanupInactiveSessions);
+  }
+  return databaseInitialization;
+};
+
+if (process.env.VERCEL !== '1') {
+  const server = createServer(handleRequest);
+  await initializeDatabase();
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`NearbyChat server listening on port ${port}.`);
+  });
+
+  const cleanupTimer = setInterval(() => {
+    void cleanupInactiveSessions().catch((error) => {
+      console.error('Error cleaning up inactive sessions:', error);
+    });
+  }, 60_000);
+  cleanupTimer.unref();
+
+  const shutdown = async () => {
+    clearInterval(cleanupTimer);
+    server.close();
+    await pool.end();
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}

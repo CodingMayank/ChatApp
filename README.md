@@ -31,4 +31,8 @@ NearbyChat is a React/Vite client with a small Node.js API server. PostgreSQL cr
 
 For a production-style run, build the client with `npm run build`, then start the API and static web server with `npm start`. The hosting environment must provide `DATABASE_URL` as a server-side secret and allow a TLS connection to the Supabase PostgreSQL pooler.
 
+## Deploy to Vercel
+
+The repository includes a Vercel serverless API function for `/api/*` and a SPA fallback for client-side routes. In the Vercel project settings, add `DATABASE_URL` as an environment variable for Production (and Preview if needed), then redeploy. Do not add it as a `VITE_*` variable or commit it to Git. The deployed API initializes the chat tables on its first invocation.
+
 The client polls the API for group, message, and active-user changes. The database connection URL is never bundled into the frontend.
